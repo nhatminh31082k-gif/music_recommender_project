@@ -50,23 +50,23 @@
 ## 3. Thành viên 3 — Nhật Minh Phạm (Backend / API Engineer | Task 3.1–3.4)
 
 ### Danh sách Nhiệm Vụ & Phối Hợp Sửa Lỗi
-- [ ] **[BUG-01] (P0 — Chủ trì Task 3.3):**
+- [x] **[BUG-01] (P0 — Chủ trì Task 3.3):**
   - **Vị trí:** [backend/app.py](file:///d:/music_recommender_projectv2/backend/app.py)
   - **Mô tả & giải pháp:** Cập nhật nạp `DATA_SCALE_MODE` (từ file cấu hình `.env`), ưu tiên nạp Compact artifact thay vì hardcode duy nhất file `3.816 GB`.
   - Không chạy `_load_model_once()` đồng bộ trực tiếp trên event loop của `async def lifespan()` (chuyển sang threadpool / worker task) và ghi log / xử lý lỗi rõ ràng thay vì nuốt ngoại lệ `MemoryError`.
-- [ ] **[BUG-06] (P1 — Chủ trì Task 3.3):**
+- [x] **[BUG-06] (P1 — Chủ trì Task 3.3):**
   - **Vị trí:** [backend/app.py](file:///d:/music_recommender_projectv2/backend/app.py)
   - **Mô tả & giải pháp:** Sửa hàm `_normalize_popularity()`: xử lý đúng trường hợp giá trị nguyên `0`/`1` khi `popularity_is_unit_scale=True`, không nhân nhầm `100` với số thập phân `(0.0, 1.0)` khi `popularity_is_unit_scale=False`, clamp giá trị trong khoảng `[0, 100]` và loại bỏ phụ thuộc global state dễ gây lệch khi swap model trong test.
-- [ ] **[BUG-07] (P1 — Phối hợp Task 3.1 / 3.3 / 3.4):**
+- [x] **[BUG-07] (P1 — Phối hợp Task 3.1 / 3.3 / 3.4):**
   - **Vị trí:** [docs/api_contract.md](file:///d:/music_recommender_projectv2/docs/api_contract.md), [backend/app.py](file:///d:/music_recommender_projectv2/backend/app.py), [backend/tests/test_api.py](file:///d:/music_recommender_projectv2/backend/tests/test_api.py)
   - **Mô tả & giải pháp:** Đồng bộ tài liệu và assertions kiểm thử theo quy chuẩn `similarity_score` luôn nằm trong `[0.0, 1.0]` thống nhất cùng TV2.
-- [ ] **[BUG-09] (P1 — Phối hợp Task 3.3):**
+- [x] **[BUG-09] (P1 — Phối hợp Task 3.3):**
   - **Vị trí:** [backend/app.py](file:///d:/music_recommender_projectv2/backend/app.py)
   - **Mô tả & giải pháp:** Gỡ bỏ workaround tắt `exclude_same_artist=False` tại API backend sau khi TV2 đã hỗ trợ fallback tự lọc theo `artist_name`.
-- [ ] **P2-1 (Phối hợp Task 3.3):**
+- [x] **P2-1 (Phối hợp Task 3.3):**
   - **Vị trí:** [backend/app.py](file:///d:/music_recommender_projectv2/backend/app.py)
   - **Mô tả & giải pháp:** Truyền `candidate_pool` đủ lớn (ví dụ `max(k * 3, 150)`) khi gọi `recommend_hybrid_mmr()` để thuật toán MMR không bị mất tác dụng lọc đa dạng hóa khi người dùng yêu cầu `k=50`.
-- [ ] **P2-6 (Chủ trì Task 3.4):**
+- [x] **P2-6 (Chủ trì Task 3.4):**
   - **Vị trí:** [backend/tests/test_api.py](file:///d:/music_recommender_projectv2/backend/tests/test_api.py)
   - **Mô tả & giải pháp:** 
     - Tách test suite khỏi sự phụ thuộc vào file `artifacts/embeat_recommender.joblib` `3.816 GB` trên đĩa (dùng fixture CSV mẫu hoặc model nhỏ tạm thời để chạy CI mượt mà).

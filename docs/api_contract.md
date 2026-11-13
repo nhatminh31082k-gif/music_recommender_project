@@ -13,9 +13,11 @@
 
 - **CORS Policy:** Đã bật `CORSMiddleware` cho phép mọi Origin (`allow_origins=["*"]`), mọi HTTP Method (`allow_methods=["*"]`) và mọi Header (`allow_headers=["*"]`). Frontend có thể gọi trực tiếp từ `file://`, `http://localhost:3000`, hoặc `http://127.0.0.1:5500` (Live Server) mà không bị chặn CORS.
 - **Định dạng dữ liệu Header:** `content-type: application/json`.
+- **Cấu hình nạp mô hình (`DATA_SCALE_MODE`):** Backend đọc biến môi trường `DATA_SCALE_MODE` (từ hệ thống hoặc file `.env`, mặc định `compact`; hỗ trợ `sample` | `compact` | `full`, và tùy chọn `MODEL_ARTIFACT_PATH`) để chọn artifact `.joblib` hoặc CSV dự phòng phù hợp. Mô hình được nạp bất đồng bộ qua `asyncio.to_thread` trong `lifespan` để không chặn event loop khi khởi động.
 - **Xử lý giá trị đặc biệt & Làm tròn:**
   - Mọi giá trị `NaN`, `np.nan`, `±Infinity` từ tầng dữ liệu đã được làm sạch thành `null` chuẩn JSON.
   - Các chỉ số trong `audio_features`, `similarity_score` và `mmr_score` đều được ép về kiểu `float` chuẩn của Python và làm tròn **4 chữ số thập phân**.
+  - Mọi giá trị `similarity_score` trả về từ các endpoint gợi ý (`audio`, `hybrid`, `mmr`, `taste_profile`, `mood`) luôn được chuẩn hóa và giới hạn trong đoạn **`[0.0, 1.0]`**.
 - **Nhúng trình phát nhạc Spotify:** Mọi đối tượng bài hát (`TrackItem`) đều có sẵn trường `spotify_embed_url` theo mẫu:
   ```text
   https://open.spotify.com/embed/track/{track_id}
@@ -46,8 +48,8 @@
 | `track_name` | `string` | Không | Tên bài hát |
 | `artist_name` | `string \| null` | Có | Tên nghệ sĩ trình bày |
 | `artist_genres` | `string \| null` | Có | Chuỗi các thể loại phân cách bằng dấu phẩy |
-| `popularity` | `int \| null` | Có | Độ phổ biến quy chuẩn (`0 – 100`) |
-| `similarity_score` | `float \| null` | Có | Điểm tương đồng thực tế (`0.0 – 1.0`, làm tròn 4 chữ số thập phân): lấy từ `similarity` (chế độ `audio`), `hybrid_similarity` (chế độ `hybrid`, `mmr`, `taste_profile`), hoặc `mood_similarity` (chế độ `mood`). Bằng `null` ở `/search`, `/tracks/{id}`, `/recommend/popular` và trong `seed_track`/`seed_tracks` |
+| `popularity` | `int \| null` | Có | Độ phổ biến quy chuẩn (`0 – 100`, tự động chuẩn hóa từ thang `0.0 – 1.0` hoặc `0 – 100` và giới hạn trong `[0, 100]`) |
+| `similarity_score` | `float \| null` | Có | Điểm tương đồng chuẩn hóa và giới hạn trong `[0.0, 1.0]` (làm tròn 4 chữ số thập phân): lấy từ `similarity` (chế độ `audio`), `hybrid_similarity` (chế độ `hybrid`, `mmr`, `taste_profile`), hoặc `mood_similarity` (chế độ `mood`). Bằng `null` ở `/search`, `/tracks/{id}`, `/recommend/popular` và trong `seed_track`/`seed_tracks` |
 | `mmr_score` | `float \| null` | Có | Điểm mục tiêu Maximal Marginal Relevance (làm tròn 4 chữ số thập phân, có thể âm khi ưu tiên đa dạng hóa mạnh). Chỉ khác `null` khi `strategy="mmr"`, các chế độ khác đều là `null` |
 | `spotify_embed_url` | `string` | Không | URL nhúng trực tiếp vào `<iframe src="...">` |
 | `audio_features` | `AudioFeatures \| null` | Có | Đối tượng chứa đủ 9 chỉ số âm học đã làm tròn 4 chữ số thập phân |
@@ -184,10 +186,10 @@
   | Tên tham số | Kiểu | Mặc định | Ràng buộc | Mô tả |
   | :--- | :---: | :---: | :---: | :--- |
   | `k` | `int` | `10` | `1 <= k <= 50` | Số lượng bài hát gợi ý trả về |
-  | `strategy` | `Literal` | `"hybrid"` | `"audio"` \| `"hybrid"` \| `"mmr"` | Chiến lược gợi ý: thuần âm học (`audio`), kết hợp âm học + thể loại (`hybrid`), hoặc đa dạng hóa bằng Maximal Marginal Relevance (`mmr`) |
+  | `strategy` | `Literal` | `"hybrid"` | `"audio"` \| `"hybrid"` \| `"mmr"` | Chiến lược gợi ý: thuần âm học (`audio`), kết hợp âm học + thể loại (`hybrid`), hoặc đa dạng hóa bằng Maximal Marginal Relevance (`mmr`, sử dụng `candidate_pool = max(k * 3, 150)`) |
   | `alpha` | `float` | `0.7` | `0.0 <= alpha <= 1.0` | Trọng số kết hợp giữa Audio (`alpha`) và Genre (`1 - alpha`) |
   | `mmr_lambda` | `float` | `0.7` | `0.0 <= mmr_lambda <= 1.0` | Trọng số cân bằng giữa độ liên quan và độ đa dạng khi `strategy="mmr"` |
-  | `exclude_same_artist` | `bool` | `true` | `true` \| `false` | Loại bỏ các bài hát cùng nghệ sĩ với bài mồi (tự động fallback sang `false` nếu tập dữ liệu thiếu cột `artist_id`) |
+  | `exclude_same_artist` | `bool` | `true` | `true` \| `false` | Loại bỏ các bài hát cùng nghệ sĩ với bài mồi (ưu tiên so khớp theo `artist_id`, tự động fallback sang `artist_name` khi thiếu `artist_id`; bỏ qua lọc nếu thiếu cả hai) |
 - **Ví dụ Request 1 (`strategy=hybrid`):** `GET /api/v1/recommend/track/7iL6o9tox1zgHpKUfh9vuC?k=2&strategy=hybrid&alpha=0.7`
 - **Response `200 OK` (`RecommendationResponse` - Hybrid):**
 ```json
